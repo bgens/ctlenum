@@ -1,6 +1,7 @@
 import argparse
 import requests
 import config
+from helpers import traceable
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--target', help="target for scan. example: --target google.com", required=True)
@@ -28,7 +29,7 @@ class CtlEnum(object):
                '&include_subdomains=true&match_wildcards=true&expand=dns_names']
         bearer = ['Bearer ', self.api]
         header = {'Authorization': ''.join(bearer)}
-        r = requests.get(''.join(url), headers=header).json()
+        r = requests.get(''.join(url), headers=header, verify=False).json()
         dns_list = list()
 
         for item in r:
@@ -55,7 +56,21 @@ if __name__ == '__main__':
     if args.a is False:
         for dnsentry in scan.get_dns():
             if target in dnsentry:
-                print(dnsentry)
+                try:
+                    url_check = traceable("https://" + dnsentry + "/")
+                    print(dnsentry + " ----- "),
+                    print(url_check.httpStatus())
+                except requests.ConnectionError:
+                    print("Connection Error")
+                except requests.ReadTimeout:
+                    print("No Response")
     else:
         for dnsentry in scan.get_dns():
-            print(dnsentry)
+            try:
+                url_check = traceable("https://" + dnsentry + "/")
+                print(dnsentry + " ----- "),
+                print(url_check.httpStatus())
+            except requests.ConnectionError:
+                print("Connection Error")
+            except requests.ReadTimeout:
+                print("No Response")
