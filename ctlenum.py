@@ -17,10 +17,13 @@ target = args.target
 
 
 class CtlEnum(object):
-    def __init__(self, api, domain, wild):
+    def __init__(self, api, domain, wild=False, all_domains=False, scan=False, screenshot=False):
         self.api = api
         self.domain = domain
         self.wild = wild
+        self.all_domains = all_domains
+        self.scan = scan
+        self.screenshot = screenshot
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Remove ssl warning output
 
     def print_target(self):
@@ -34,7 +37,6 @@ class CtlEnum(object):
         r = requests.get(''.join(url), headers=header, verify=False).json()
         dns_list = list()
 
-        print(r)
         for item in r:
             list_count = len(item['dns_names'])
             if list_count > 1:
@@ -51,34 +53,43 @@ class CtlEnum(object):
                     dns_list.append(str_item)
         return set(dns_list)
 
-
-scan = CtlEnum(config.api_key, target, args.w)
-
-if __name__ == '__main__':
-    if args.a is False:
-        for dnsentry in scan.get_dns():
-            if target in dnsentry:
+    def doScan(self):
+        if self.all_domains is False:
+            for dnsentry in self.get_dns():
+                if self.domain in dnsentry:
+                    try:
+                        url_check = traceable("https://" + dnsentry + "/")
+                        print(dnsentry + " ----- "),
+                        if url_check.httpStatus() == 200:
+                            print(url_check.httpStatus()),
+                            if self.screenshot is True:
+                                url_check.getScreenshot()
+                                print("Screenshot Captured")
+                        else:
+                            print(url_check.httpStatus())
+                    except requests.ConnectionError:
+                        print("Connection Error")
+                    except requests.ReadTimeout:
+                        print("No Response")
+        else:
+            for dnsentry in self.get_dns():
                 try:
                     url_check = traceable("https://" + dnsentry + "/")
                     print(dnsentry + " ----- "),
-                    print(url_check.httpStatus())
                     if url_check.httpStatus() == 200:
-                        url_check.getScreenshot()
-                        print('screenshot taken')
+                        print(url_check.httpStatus()),
+                        if self.screenshot is True:
+                            url_check.getScreenshot()
+                            print("----- Screenshot Captured")
+                    else:
+                        print(url_check.httpStatus())
                 except requests.ConnectionError:
                     print("Connection Error")
                 except requests.ReadTimeout:
                     print("No Response")
-    else:
-        for dnsentry in scan.get_dns():
-            try:
-                url_check = traceable("https://" + dnsentry + "/")
-                print(dnsentry + " ----- "),
-                print(url_check.httpStatus())
-                if url_check.getScreenshot() == 200:
-                    url_check.getScreenshot()
-                    print('screenshot taken')
-            except requests.ConnectionError:
-                print("Connection Error")
-            except requests.ReadTimeout:
-                print("No Response")
+
+
+if __name__ == '__main__':
+    scanme = CtlEnum(config.api_key, domain=target, scan=True, screenshot=True)
+    scanme.doScan()
+    
