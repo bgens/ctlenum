@@ -1,6 +1,7 @@
 import argparse
 import requests
 import config
+import urllib3
 from helpers import traceable
 
 parser = argparse.ArgumentParser()
@@ -20,6 +21,7 @@ class CtlEnum(object):
         self.api = api
         self.domain = domain
         self.wild = wild
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Remove ssl warning output
 
     def print_target(self):
         print('Target Domain: ', str(self.domain))
@@ -32,6 +34,7 @@ class CtlEnum(object):
         r = requests.get(''.join(url), headers=header, verify=False).json()
         dns_list = list()
 
+        print(r)
         for item in r:
             list_count = len(item['dns_names'])
             if list_count > 1:
@@ -46,7 +49,6 @@ class CtlEnum(object):
                     pass
                 else:
                     dns_list.append(str_item)
-
         return set(dns_list)
 
 
@@ -60,6 +62,9 @@ if __name__ == '__main__':
                     url_check = traceable("https://" + dnsentry + "/")
                     print(dnsentry + " ----- "),
                     print(url_check.httpStatus())
+                    if url_check.httpStatus() == 200:
+                        url_check.getScreenshot()
+                        print('screenshot taken')
                 except requests.ConnectionError:
                     print("Connection Error")
                 except requests.ReadTimeout:
@@ -70,6 +75,9 @@ if __name__ == '__main__':
                 url_check = traceable("https://" + dnsentry + "/")
                 print(dnsentry + " ----- "),
                 print(url_check.httpStatus())
+                if url_check.getScreenshot() == 200:
+                    url_check.getScreenshot()
+                    print('screenshot taken')
             except requests.ConnectionError:
                 print("Connection Error")
             except requests.ReadTimeout:
