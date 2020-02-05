@@ -3,13 +3,17 @@ import requests
 import config
 import urllib3
 from helpers import traceable
+from threading import Thread
+from Queue import Queue
+import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--target', help="target for scan. example: --target google.com", required=True)
 parser.add_argument('-w', action='store_true', help="Wildcards.  Shows wildcard subdomains like: *.google.com")
 parser.add_argument('-a', action='store_true', help="All output. Show non-target domains caught in search."
                                                     " Useful for finding vendors for target domain")
-
+parser.add_argument('-s', action='store_false', help="Generate traceable traffic using http requests")
+parser.add_argument('-ss', action='store_false', help="Take screenshot of target domain")
 
 args = parser.parse_args()
 
@@ -24,6 +28,7 @@ class CtlEnum(object):
         self.all_domains = all_domains
         self.scan = scan
         self.screenshot = screenshot
+        self.q = Queue()
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Remove ssl warning output
 
     def print_target(self):
@@ -51,45 +56,64 @@ class CtlEnum(object):
                     pass
                 else:
                     dns_list.append(str_item)
-        return set(dns_list)
+        return dns_list
 
-    def doScan(self):
+    def doScan(self, dnsentry):
         if self.all_domains is False:
-            for dnsentry in self.get_dns():
-                if self.domain in dnsentry:
-                    try:
-                        url_check = traceable("https://" + dnsentry + "/")
-                        print(dnsentry + " ----- "),
-                        if url_check.httpStatus() == 200:
-                            print(url_check.httpStatus()),
-                            if self.screenshot is True:
-                                url_check.getScreenshot()
-                                print("Screenshot Captured")
-                        else:
-                            print(url_check.httpStatus())
-                    except requests.ConnectionError:
-                        print("Connection Error")
-                    except requests.ReadTimeout:
-                        print("No Response")
-        else:
-            for dnsentry in self.get_dns():
+            if self.domain in dnsentry:
                 try:
                     url_check = traceable("https://" + dnsentry + "/")
-                    print(dnsentry + " ----- "),
+                    message = (dnsentry + " ----- ")
                     if url_check.httpStatus() == 200:
-                        print(url_check.httpStatus()),
+                        message = (message + str(url_check.httpStatus()))
                         if self.screenshot is True:
                             url_check.getScreenshot()
-                            print("----- Screenshot Captured")
+                            message = (message + " ----- Screenshot Captured")
+                            return message
                     else:
-                        print(url_check.httpStatus())
+                        return message
                 except requests.ConnectionError:
-                    print("Connection Error")
+                    message = (message + "Connection Error")
+                    return message
                 except requests.ReadTimeout:
-                    print("No Response")
+                    message = (message + "No Response")
+                    return message
+        else:
+            try:
+                url_check = traceable("https://" + dnsentry + "/")
+                message = (dnsentry + " ----- ")
+                if url_check.httpStatus() == 200:
+                    message = (message + str(url_check.httpStatus()))
+                    if self.screenshot is True:
+                        url_check.getScreenshot()
+                        message = (message + " ----- Screenshot Captured")
+                        return message
+                else:
+                    return message
+            except requests.ConnectionError:
+                message = (message + "Connection Error")
+                return message
+            except requests.ReadTimeout:
+                message = (message + "No Response")
+                return message
 
+def droneWork():
+    while True:
+        targ = q.get()
+        output = scanme.doScan(targ)
+        if output is not None:
+            logging.info(output)
+        q.task_done()
 
 if __name__ == '__main__':
     scanme = CtlEnum(config.api_key, domain=target, scan=True, screenshot=True)
-    scanme.doScan()
-    
+    q = Queue()
+    logging.basicConfig(format='%(message)s', level=logging.INFO)
+    for entry in scanme.get_dns():
+        q.put(entry)
+
+    for x in range(30):
+        t = Thread(target=droneWork)
+        t.daemon = True
+        t.start()
+    q.join()
