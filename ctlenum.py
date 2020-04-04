@@ -2,9 +2,9 @@ import argparse
 import requests
 import config
 import urllib3
-from helpers import traceable
-from threading import Thread
-from Queue import Queue
+from helpers import traceable, checkFolder
+from threading import Thread, get_ident
+from queue import Queue
 import logging
 
 parser = argparse.ArgumentParser()
@@ -16,7 +16,6 @@ parser.add_argument('-s', action='store_false', help="Generate traceable traffic
 parser.add_argument('-ss', action='store_false', help="Take screenshot of target domain")
 
 args = parser.parse_args()
-
 target = args.target
 
 
@@ -29,6 +28,7 @@ class CtlEnum(object):
         self.scan = scan
         self.screenshot = screenshot
         self.q = Queue()
+        self.output_loc = ("./output/" + domain + "/")
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Remove ssl warning output
 
     def print_target(self):
@@ -39,7 +39,11 @@ class CtlEnum(object):
                '&include_subdomains=true&match_wildcards=true&expand=dns_names']
         bearer = ['Bearer ', self.api]
         header = {'Authorization': ''.join(bearer)}
+        fail_msg = {'code': 'rate_limited', 'message': 'You have exceeded the domain search rate limit for the Cert Spotter API.  Please try again later, or upgrade your Cert Spotter plan.'}
         r = requests.get(''.join(url), headers=header, verify=False).json()
+        if r == fail_msg:
+            logging.warning("[!] Cert Spotter API rate limit reached.  Consider upgrading to support your needs or trying later.")
+            exit()
         dns_list = list()
 
         for item in r:
@@ -62,55 +66,66 @@ class CtlEnum(object):
         if self.all_domains is False:
             if self.domain in dnsentry:
                 try:
-                    url_check = traceable("https://" + dnsentry + "/")
-                    message = (dnsentry + " ----- ")
-                    if url_check.httpStatus() == 200:
-                        message = (message + str(url_check.httpStatus()))
+                    url_check = traceable(("https://" + dnsentry + "/"), output_dir=self.output_loc)
+                    message = dnsentry + " --- "
+                    http_status = url_check.httpStatus()
+                    message = message + str(http_status)
+                    if http_status == 200:
                         if self.screenshot is True:
                             url_check.getScreenshot()
-                            message = (message + " ----- Screenshot Captured")
+                            message = message + " --- Screenshot Captured"
                             return message
                     else:
-                        return message
+                        return message + " --- [Ignoring Subdomain]"
                 except requests.ConnectionError:
-                    message = (message + "Connection Error")
+                    message = message + "[Connection Error]"
                     return message
                 except requests.ReadTimeout:
-                    message = (message + "No Response")
+                    message = message + "[No Response]"
                     return message
         else:
             try:
-                url_check = traceable("https://" + dnsentry + "/")
-                message = (dnsentry + " ----- ")
-                if url_check.httpStatus() == 200:
-                    message = (message + str(url_check.httpStatus()))
+                url_check = traceable(("https://" + dnsentry + "/"), output_dir=self.output_loc)
+                message = dnsentry + " --- "
+                http_status = url_check.httpStatus()
+                message = message + str(http_status)
+                if http_status == 200:
                     if self.screenshot is True:
                         url_check.getScreenshot()
-                        message = (message + " ----- Screenshot Captured")
+                        message = message + " --- Screenshot Captured"
                         return message
-                else:
-                    return message
             except requests.ConnectionError:
-                message = (message + "Connection Error")
-                return message
+                message = message + "[Connection Error]"
+                return message + " --- [Ignoring Subdomain]"
             except requests.ReadTimeout:
-                message = (message + "No Response")
+                message = message + "[No Response]"
                 return message
+
 
 def droneWork():
     while True:
         targ = q.get()
+        logging.info("[Thread ID:" + str(get_ident()) + "] gets [" + str(targ) + "]")
         output = scanme.doScan(targ)
         if output is not None:
-            logging.info(output)
+            logging.warning("[Thead ID:" + str(get_ident()) + "] --- " + output)
         q.task_done()
 
+
 if __name__ == '__main__':
+    checkFolder(target)
     scanme = CtlEnum(config.api_key, domain=target, scan=True, screenshot=True)
     q = Queue()
-    logging.basicConfig(format='%(message)s', level=logging.INFO)
+    logging.basicConfig(format='%(message)s', level=logging.WARNING)
+    pre_list = list()
     for entry in scanme.get_dns():
-        q.put(entry)
+        if entry not in pre_list:
+            pre_list.append(entry)
+        else:
+            logging.info("[!] Duplicate: " + str(entry) + " eliminated")
+    for dns_item in pre_list:
+        q.put(dns_item)
+        logging.info("[+] " + dns_item + " [Entered into queue]")
 
     for x in range(30):
         t = Thread(target=droneWork)
