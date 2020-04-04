@@ -1,13 +1,11 @@
 import requests
 import urllib3
 from selenium import webdriver
-import time
-#import ctlenum
-#from multiprocessing import Pool
+from os import path, makedirs
 
 
 class traceable:
-    def __init__(self, url):
+    def __init__(self, url, output_dir):
         self.url = url
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Remove ssl warning output
         self.options = webdriver.ChromeOptions()
@@ -18,6 +16,7 @@ class traceable:
         self.options.add_argument('--disable-gpu')
         self.options.add_argument('disable-infobars')
         self.options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        self.output_dir = output_dir
 
     def httpStatus(self):
         check = requests.get(self.url, verify=False, timeout=1) #Disable ssl verification
@@ -28,12 +27,14 @@ class traceable:
             driver.set_window_size(width=2200, height=1800)
             driver.get(self.url)
 #            time.sleep(2)
-            driver.save_screenshot("./output/" + self.url.split('/')[2] + ".png")
+            driver.save_screenshot(self.output_dir + self.url.split('/')[2] + ".png")
 
-#class auxilary:
-#    def __init__(self):
-#        pass
 
-#if __name__ == '__main__':
-#    target = traceable('https://google.com')
-#    print(target.httpStatus())
+def checkFolder(domain):
+    try:
+        if path.exists("./output/" + domain + "/") is True:
+            pass
+        else:
+            makedirs("./output/" + domain + "/")
+    except():
+        print("Probable permissions issue for checking/creating output Directory `./output/`")
