@@ -2,6 +2,7 @@ import requests
 import urllib3
 from selenium import webdriver
 from os import path, makedirs
+from selenium.common.exceptions import TimeoutException
 
 
 class traceable:
@@ -19,15 +20,26 @@ class traceable:
         self.output_dir = output_dir
 
     def httpStatus(self):
-        check = requests.get(self.url, verify=False, timeout=1) #Disable ssl verification
-        return check.status_code
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
+        header = {'User-Agent': user_agent}
+        try:
+            check = requests.get(self.url, verify=False, headers=header, timeout=2) #Disable ssl verification
+            return check.status_code
+        except(requests.exceptions.TooManyRedirects):
+            status_code = 301
+            return status_code
+
 
     def getScreenshot(self):
         with webdriver.Chrome("./chromedriver.exe", chrome_options=self.options) as driver:
             driver.set_window_size(width=2200, height=1800)
-            driver.get(self.url)
-#            time.sleep(2)
-            driver.save_screenshot(self.output_dir + self.url.split('/')[2] + ".png")
+            driver.set_page_load_timeout(5)
+            try:
+                driver.get(self.url)
+                driver.save_screenshot(self.output_dir + self.url.split('/')[2] + ".png")
+            except TimeoutException as ex:
+                print("URL: [ " + self.url + " ] failed to respond.  Error: " + str(ex))
+                driver.close()
 
 
 def checkFolder(domain):
