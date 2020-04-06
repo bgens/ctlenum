@@ -12,11 +12,15 @@ parser.add_argument('--target', help="target for scan. example: --target google.
 parser.add_argument('-w', action='store_true', help="Wildcards.  Shows wildcard subdomains like: *.google.com")
 parser.add_argument('-a', action='store_true', help="All output. Show non-target domains caught in search."
                                                     " Useful for finding vendors for target domain")
-parser.add_argument('-s', action='store_false', help="Generate traceable traffic using http requests")
-parser.add_argument('-ss', action='store_false', help="Take screenshot of target domain")
+parser.add_argument('-s', action='store_true', help="Generate traceable traffic using http requests")
+parser.add_argument('-ss', action='store_true', help="Take screenshot of target domain")
 
 args = parser.parse_args()
 target = args.target
+screenshot_arg = args.ss
+scan_arg = args.s
+wild_arg = args.w
+all_arg = args.a
 
 
 class CtlEnum(object):
@@ -104,17 +108,29 @@ class CtlEnum(object):
 
 def droneWork():
     while True:
+        output = ''
         targ = q.get()
         logging.info("[Thread ID:" + str(get_ident()) + "] gets [" + str(targ) + "]")
-        output = scanme.doScan(targ)
-        if output is not None:
-            logging.warning("[Thead ID:" + str(get_ident()) + "] --- " + output)
+        if scan_arg is True or screenshot_arg is True:
+            output = scanme.doScan(targ)
+            if output is not None:
+                logging.warning("[Thead ID:" + str(get_ident()) + "] --- " + output)
+        else:
+            if all_arg is True:
+                output = str(targ)
+                logging.warning(output)
+            else:
+                if target not in targ:
+                    pass
+                else:
+                    output = str(targ)
+                    logging.warning(output)
         q.task_done()
 
 
 if __name__ == '__main__':
     checkFolder(target)
-    scanme = CtlEnum(config.api_key, domain=target, scan=True, screenshot=True)
+    scanme = CtlEnum(config.api_key, domain=target, scan=scan_arg, screenshot=screenshot_arg)
     q = Queue()
     logging.basicConfig(format='%(message)s', level=logging.WARNING)
     pre_list = list()
@@ -127,7 +143,7 @@ if __name__ == '__main__':
         q.put(dns_item)
         logging.info("[+] " + dns_item + " [Entered into queue]")
 
-    for x in range(30):
+    for x in range(32):
         t = Thread(target=droneWork)
         t.daemon = True
         t.start()
