@@ -7,6 +7,9 @@ Enumeration of Certificate Transparency Logs
   - API Key for sslmate's certspotter:
     - Register an account with sslmate.com (certspotter)
     - Grab API Key from: https://sslmate.com/account/api_credentials
+  - Install google chrome or google chromium
+  - Download latest version of chrome webdriver from: https://chromedriver.chromium.org/downloads
+  - Place webdriver in the ctlenum directory
 
 **Before using:**
   - edit 'config.py' and place your API key in the config file
