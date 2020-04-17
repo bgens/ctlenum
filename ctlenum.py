@@ -43,10 +43,13 @@ class CtlEnum(object):
                '&include_subdomains=true&match_wildcards=true&expand=dns_names']
         bearer = ['Bearer ', self.api]
         header = {'Authorization': ''.join(bearer)}
-        fail_msg = {'code': 'rate_limited', 'message': 'You have exceeded the domain search rate limit for the Cert Spotter API.  Please try again later, or upgrade your Cert Spotter plan.'}
+        fail_msg = {'code': 'rate_limited', 'message': 'You have exceeded the domain search rate limit for the Cert '
+                                                       'Spotter API. '
+                                                       'Please try again later, or upgrade your Cert Spotter plan.'}
         r = requests.get(''.join(url), headers=header, verify=False).json()
         if r == fail_msg:
-            logging.warning("[!] Cert Spotter API rate limit reached.  Consider upgrading to support your needs or trying later.")
+            logging.warning("[!] Cert Spotter API rate limit reached.  "
+                            "Consider upgrading to support your needs or trying later.")
             exit()
         dns_list = list()
 
