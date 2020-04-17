@@ -21,12 +21,12 @@ If outputting results to a list, for use with nmap and/or other scanning tools, 
 
  --target sets target domain
  
- -a include ALL non-target domains in output
+ -s scan
  
- -w include wildcard subdomains in output. 
+ -ss scan & screenshot
   - Example: \*.example.com
 
 **Example w/ Arguments:**
 
-   ```python ctlenum.py -a -w --target example.com```
+   ```python ctlenum.py -ss --target example.com```
    
