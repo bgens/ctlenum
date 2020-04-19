@@ -28,6 +28,7 @@ If outputting results to a list, for use with nmap and/or other scanning tools, 
  
  -ss scan & screenshot
   - Example: \*.example.com
+  - screenshots are placed in the ctlenum directory under ther "output" folder.
 
 **Example w/ Arguments:**
 
